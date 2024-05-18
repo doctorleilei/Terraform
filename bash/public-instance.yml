@@ -1,0 +1,40 @@
+## template: jinja
+#cloud-config
+timezone: Asia/Tokyo
+locale: ja_JP.utf8
+packages:
+  - oraclelinux-developer-release-el8
+  - python36-oci-cli
+  - java-11-openjdk
+  - sqlcl
+write_files:
+  - content: |
+      00 * * * * oci db autonomous-database start --autonomous-database-id ${task_autonomous_database_id}
+      45 * * * * oci db autonomous-database stop --autonomous-database-id ${task_autonomous_database_id}
+      */1 * * * * oci compute instance action --action "START" --instance-id ${private_instance_id}
+      45 * * * * oci compute instance action --action "SOFTSTOP" --instance-id ${private_instance_id}
+    path: /var/spool/cron/opc
+    append: true
+  - content: "${config}"
+    path: /home/opc/.oci/config
+  - content: "${oci_api_key}"
+    path: /home/opc/.oci/oci_api_key.pem
+  - content: "${config}"
+    path: /root/.oci/config
+  - content: "${oci_api_key}"
+    path: /root/.oci/oci_api_key.pem
+  - content: "${id_rsa}"
+    path: /home/opc/.ssh/id_rsa
+runcmd:
+  - "publicRouterIp=$(curl -H 'Authorization: Bearer Oracle' http://169.254.169.254/opc/v1/vnics/ | jq -r '.[0].virtualRouterIp')"
+  - "privateRouterIp=$(curl -H 'Authorization: Bearer Oracle' http://169.254.169.254/opc/v1/vnics/ | jq -r '.[1].virtualRouterIp')"
+  - "primaryvnicid=$(curl -H 'Authorization: Bearer Oracle' http://169.254.169.254/opc/v1/vnics/ | jq -r '.[0].vnicId')"
+  - "secondaryvnicid=$(curl -H 'Authorization: Bearer Oracle' http://169.254.169.254/opc/v1/vnics/ | jq -r '.[1].vnicId')"
+  - "privateIpId=$(oci network private-ip list --vnic-id $primaryvnicid | jq -r '.data[].id')"
+  - "publicIpId=$(oci network public-ip get --private-ip-id $privateIpId | jq -r '.data.id')"
+  - route delete default
+  - route add default gw $privateRouterIp
+  - oci network public-ip delete --public-ip-id $publicIpId --force --wait-for-state UNASSIGNED
+  - oci network public-ip update --public-ip-id ${public_ip_id} --private-ip-id $privateIpId
+  - route delete default
+  - oci compute instance detach-vnic --compartment-id {{ ds.compartmentId }} --vnic-id $secondaryvnicid --force
