@@ -26,15 +26,14 @@ write_files:
   - content: "${id_rsa}"
     path: /home/opc/.ssh/id_rsa
 runcmd:
-  - "publicRouterIp=$(curl -H 'Authorization: Bearer Oracle' http://169.254.169.254/opc/v1/vnics/ | jq -r '.[0].virtualRouterIp')"
-  - "privateRouterIp=$(curl -H 'Authorization: Bearer Oracle' http://169.254.169.254/opc/v1/vnics/ | jq -r '.[1].virtualRouterIp')"
+  - "oci compute instance attach-vnic --instance-id {{ v1.instance_id }} --subnet-id ${private_subnet_id} --nsg-ids '[\"${nsg_id}\"]' --wait"
   - "primaryvnicid=$(curl -H 'Authorization: Bearer Oracle' http://169.254.169.254/opc/v1/vnics/ | jq -r '.[0].vnicId')"
   - "secondaryvnicid=$(curl -H 'Authorization: Bearer Oracle' http://169.254.169.254/opc/v1/vnics/ | jq -r '.[1].vnicId')"
   - "privateIpId=$(oci network private-ip list --vnic-id $primaryvnicid | jq -r '.data[].id')"
   - "publicIpId=$(oci network public-ip get --private-ip-id $privateIpId | jq -r '.data.id')"
-  - route delete default
+  - "privateRouterIp=$(curl -H 'Authorization: Bearer Oracle' http://169.254.169.254/opc/v1/vnics/ | jq -r '.[1].virtualRouterIp')"
+  - oci-network-config configure
   - route add default gw $privateRouterIp
   - oci network public-ip delete --public-ip-id $publicIpId --force --wait-for-state UNASSIGNED
   - oci network public-ip update --public-ip-id ${public_ip_id} --private-ip-id $privateIpId
-  - route delete default
   - oci compute instance detach-vnic --compartment-id {{ ds.compartmentId }} --vnic-id $secondaryvnicid --force

@@ -8,7 +8,7 @@ resource "oci_database_autonomous_database" "task_autonomous_database" {
   db_workload  = "DW"
   display_name = "task_autonomous_database"
   # VCN OCID can't be used
-  whitelisted_ips = ["125.103.97.234", data.oci_core_public_ip.public_instance_reserved_public_ip.ip_address, oci_core_nat_gateway.task_nat_gateway.nat_ip]
+  whitelisted_ips = ["125.103.97.234", oci_core_public_ip.public_instance_reserved_public_ip.ip_address, oci_core_nat_gateway.task_nat_gateway.nat_ip]
   is_free_tier    = true
 }
 output "autonomous_database_connection_strings" {
