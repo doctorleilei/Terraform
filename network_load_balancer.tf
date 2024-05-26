@@ -1,12 +1,12 @@
 resource "oci_network_load_balancer_network_load_balancer" "task_network_load_balancer" {
   #Required
-  compartment_id             = oci_identity_compartment.task_compartment.id
+  compartment_id             = data.oci_identity_compartment.task_compartment.id
   display_name               = "task_network_load_balancer"
   subnet_id                  = oci_core_subnet.public_subnet.id
   is_private                 = false
   network_security_group_ids = [oci_core_network_security_group.task_network_load_balancer_network_security_group.id]
   reserved_ips {
-    id = oci_core_public_ip.task_network_load_balancer_reserved_public_ip.id
+    id = data.oci_core_public_ip.task_network_load_balancer_reserved_public_ip.id
   }
 }
 resource "oci_network_load_balancer_backend_set" "task_backend_set_ssh" {

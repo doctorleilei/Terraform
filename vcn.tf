@@ -1,5 +1,5 @@
-resource "oci_core_vcn" "tack_vcn" {
-  cidr_block     = "10.1.0.0/16"
-  compartment_id = oci_identity_compartment.task_compartment.id
-  display_name   = "tack_vcn"
+resource "oci_core_vcn" "task_vcn" {
+  cidr_block     = var.vcn_cidr_block
+  compartment_id = data.oci_identity_compartment.task_compartment.id
+  display_name   = "task_vcn"
 }

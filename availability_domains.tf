@@ -1,3 +1,3 @@
 data "oci_identity_availability_domains" "ads" {
-  compartment_id = oci_identity_compartment.task_compartment.id
+  compartment_id = data.oci_identity_compartment.task_compartment.id
 }

@@ -9,31 +9,61 @@ packages:
   - sqlcl
 write_files:
   - content: |
-      00 * * * * oci db autonomous-database start --autonomous-database-id ${task_autonomous_database_id}
-      45 * * * * oci db autonomous-database stop --autonomous-database-id ${task_autonomous_database_id}
-      */1 * * * * oci compute instance action --action "START" --instance-id ${private_instance_id}
-      45 * * * * oci compute instance action --action "SOFTSTOP" --instance-id ${private_instance_id}
+      * 09 * * * /home/opc/bash/autonomous-database-start.sh
+      * 18 * * * /home/opc/bash/autonomous-database-stop.sh
+      * 09 * * * /home/opc/bash/private-instance-start.sh
+      * 18 * * * /home/opc/bash/private-instance-stop.sh
     path: /var/spool/cron/opc
     append: true
-  - content: "${config}"
+  - content: "${oci_api_config}"
     path: /home/opc/.oci/config
-  - content: "${oci_api_key}"
+  - content: "${oci_api_private_key}"
     path: /home/opc/.oci/oci_api_key.pem
-  - content: "${config}"
+  - content: "${oci_api_config}"
     path: /root/.oci/config
-  - content: "${oci_api_key}"
+  - content: "${oci_api_private_key}"
     path: /root/.oci/oci_api_key.pem
-  - content: "${id_rsa}"
+  - content: "${ssh_authorized_private_key}"
     path: /home/opc/.ssh/id_rsa
+  - content: |
+      autonomous_database_status=$(oci db autonomous-database get --autonomous-database-id ${task_autonomous_database_id} | jq -r '.data.["lifecycle-state"]')
+      if [ $autonomous_database_status != "AVAILABLE" ]; then
+        oci db autonomous-database start --autonomous-database-id ${task_autonomous_database_id}
+      fi
+    path: /home/opc/bash/autonomous-database-start.sh
+    permissions: '0755'
+  - content: |
+      autonomous_database_status=$(oci db autonomous-database get --autonomous-database-id ${task_autonomous_database_id} | jq -r '.data.["lifecycle-state"]')
+      if [ $autonomous_database_status != "STOPPED" ]; then
+        oci db autonomous-database stop --autonomous-database-id ${task_autonomous_database_id}
+      fi
+    path: /home/opc/bash/autonomous-database-stop.sh
+    permissions: '0755'
+  - content: |
+      instance_status=$(oci compute instance get --instance-id ${private_instance_id} | jq -r '.data.["lifecycle-state"]')
+      if [ $instance_status != "RUNNING" ]; then
+        oci compute instance action --action "START" --instance-id ${private_instance_id}
+      fi
+    path: /home/opc/bash/private-instance-start.sh
+    permissions: '0755'
+  - content: |
+      instance_status=$(oci compute instance get --instance-id ${private_instance_id} | jq -r '.data.["lifecycle-state"]')
+      if [ $instance_status != "STOPPED" ]; then
+        oci compute instance action --action "SOFTSTOP" --instance-id ${private_instance_id}
+      fi
+    path: /home/opc/bash/private-instance-stop.sh
+    permissions: '0755'
 runcmd:
-  - "oci compute instance attach-vnic --instance-id {{ v1.instance_id }} --subnet-id ${private_subnet_id} --nsg-ids '[\"${nsg_id}\"]' --wait"
-  - "primaryvnicid=$(curl -H 'Authorization: Bearer Oracle' http://169.254.169.254/opc/v1/vnics/ | jq -r '.[0].vnicId')"
-  - "secondaryvnicid=$(curl -H 'Authorization: Bearer Oracle' http://169.254.169.254/opc/v1/vnics/ | jq -r '.[1].vnicId')"
-  - "privateIpId=$(oci network private-ip list --vnic-id $primaryvnicid | jq -r '.data[].id')"
-  - "publicIpId=$(oci network public-ip get --private-ip-id $privateIpId | jq -r '.data.id')"
-  - "privateRouterIp=$(curl -H 'Authorization: Bearer Oracle' http://169.254.169.254/opc/v1/vnics/ | jq -r '.[1].virtualRouterIp')"
+  - systemctl restart cron
+  - chown -R opc:opc /home/opc/
+  - 'oci compute instance attach-vnic --instance-id {{ v1.instance_id }} --subnet-id ${private_subnet_id} --nsg-ids ''["${private_instance_nsg_id}"]'' --wait'
+  - "primary_vnic_id=$(curl -H 'Authorization: Bearer Oracle' http://169.254.169.254/opc/v1/vnics/ | jq -r '.[0].vnicId')"
+  - "primary_private_ip_id=$(oci network private-ip list --vnic-id $primary_vnic_id | jq -r '.data[].id')"
+  - "current_public_ip_id=$(oci network public-ip get --private-ip-id $primary_private_ip_id | jq -r '.data.id')"
   - oci-network-config configure
-  - route add default gw $privateRouterIp
-  - oci network public-ip delete --public-ip-id $publicIpId --force --wait-for-state UNASSIGNED
-  - oci network public-ip update --public-ip-id ${public_ip_id} --private-ip-id $privateIpId
-  - oci compute instance detach-vnic --compartment-id {{ ds.compartmentId }} --vnic-id $secondaryvnicid --force
+  - "secondary_vnic_id=$(curl -H 'Authorization: Bearer Oracle' http://169.254.169.254/opc/v1/vnics/ | jq -r '.[1].vnicId')"
+  - "private_router_ip=$(curl -H 'Authorization: Bearer Oracle' http://169.254.169.254/opc/v1/vnics/ | jq -r '.[1].virtualRouterIp')"
+  - route add default gw $private_router_ip
+  - oci network public-ip delete --public-ip-id $current_public_ip_id --force --wait-for-state UNASSIGNED
+  - oci network public-ip update --public-ip-id ${reserved_public_ip_id} --private-ip-id $primary_private_ip_id
+  - oci compute instance detach-vnic --compartment-id {{ ds.compartmentId }} --vnic-id $secondary_vnic_id --force

@@ -1,0 +1,17 @@
+variable "compartment_id" { default = "ocid1.compartment.oc1..aaaaaaaadq3or6xtygxv2g7qn5sn6yl4nsqdg43svv57dpsply74jjtnjvaa" }
+variable "public_instance_reserved_public_ip_id" { default = "ocid1.publicip.oc1.ap-tokyo-1.amaaaaaa5x5wraqaayke5bwnipbaf5cfj5agaz4dapu2jctyujpwjp3trrtq" }
+variable "task_network_load_balancer_reserved_public_ip_id" { default = "ocid1.publicip.oc1.ap-tokyo-1.amaaaaaa5x5wraqajvytgd2ct25vu2s4aaqqo7pekovqal2qxt6iviypcv7q" }
+variable "vcn_cidr_block" { default = "10.0.0.0/16" }
+variable "public_subnet_cidr_block" { default = "10.0.0.0/24" }
+variable "private_subnet_cidr_block" { default = "10.0.1.0/24" }
+variable "local_ip_cidr_block" { default = "125.103.97.234/32" }
+variable "local_ip" { default = "125.103.97.234" }
+variable "instance_sharp" { default = "VM.Standard.A1.Flex" }
+variable "adw_admin_password" { default = "Zhang19870110" }
+variable "instance_source_id" { default = "ocid1.image.oc1.ap-tokyo-1.aaaaaaaaongp2eu5zvioimbvbdh2h7leg7jdn4rmcv2lputdnpfikysou3dq" }
+variable "file_path_public_instance_user_data" { default = "./config/public-instance.yml" }
+variable "file_path_private_instance_user_data" { default = "./config/private-instance.yml" }
+variable "file_path_ssh_authorized_public_key" { default = "./.ssh/id_rsa.pub" }
+variable "file_path_ssh_authorized_private_key" { default = "./.ssh/id_rsa" }
+variable "file_path_oci_api_config" { default = "./.oci/config" }
+variable "file_path_oci_api_private_key" { default = "./.oci/oci_api_key.pem" }

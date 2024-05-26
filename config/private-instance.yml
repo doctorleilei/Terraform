@@ -5,11 +5,9 @@ packages:
   - nginx
   - java-11-openjdk
   - sqlcl
-  - firewalld
 runcmd:
-  - sudo systemctl enable nginx
-  - sudo systemctl start nginx
-  - sudo firewall-offline-cmd --add-port=80/tcp
-  - sudo systemctl enable firewalld
-  - sudo systemctl start firewalld
-  - sudo systemctl restart firewalld
+  - systemctl enable nginx
+  - systemctl start nginx
+  - systemctl stop firewalld
+  - firewall-offline-cmd --add-port=80/tcp
+  - systemctl start firewalld
