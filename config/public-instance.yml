@@ -9,10 +9,10 @@ packages:
   - sqlcl
 write_files:
   - content: |
-      * 09 * * * /home/opc/bash/autonomous-database-start.sh
-      * 18 * * * /home/opc/bash/autonomous-database-stop.sh
-      * 09 * * * /home/opc/bash/private-instance-start.sh
-      * 18 * * * /home/opc/bash/private-instance-stop.sh
+      00 09 * * * /home/opc/bash/autonomous-database-start.sh
+      00 18 * * * /home/opc/bash/autonomous-database-stop.sh
+      00 09 * * * /home/opc/bash/private-instance-start.sh
+      00 18 * * * /home/opc/bash/private-instance-stop.sh
     path: /var/spool/cron/opc
     append: true
   - content: "${oci_api_config}"
@@ -31,30 +31,29 @@ write_files:
         oci db autonomous-database start --autonomous-database-id ${task_autonomous_database_id}
       fi
     path: /home/opc/bash/autonomous-database-start.sh
-    permissions: '0755'
+    permissions: "0755"
   - content: |
       autonomous_database_status=$(oci db autonomous-database get --autonomous-database-id ${task_autonomous_database_id} | jq -r '.data.["lifecycle-state"]')
       if [ $autonomous_database_status != "STOPPED" ]; then
         oci db autonomous-database stop --autonomous-database-id ${task_autonomous_database_id}
       fi
     path: /home/opc/bash/autonomous-database-stop.sh
-    permissions: '0755'
+    permissions: "0755"
   - content: |
       instance_status=$(oci compute instance get --instance-id ${private_instance_id} | jq -r '.data.["lifecycle-state"]')
       if [ $instance_status != "RUNNING" ]; then
         oci compute instance action --action "START" --instance-id ${private_instance_id}
       fi
     path: /home/opc/bash/private-instance-start.sh
-    permissions: '0755'
+    permissions: "0755"
   - content: |
       instance_status=$(oci compute instance get --instance-id ${private_instance_id} | jq -r '.data.["lifecycle-state"]')
       if [ $instance_status != "STOPPED" ]; then
         oci compute instance action --action "SOFTSTOP" --instance-id ${private_instance_id}
       fi
     path: /home/opc/bash/private-instance-stop.sh
-    permissions: '0755'
+    permissions: "0755"
 runcmd:
-  - systemctl restart cron
   - chown -R opc:opc /home/opc/
   - 'oci compute instance attach-vnic --instance-id {{ v1.instance_id }} --subnet-id ${private_subnet_id} --nsg-ids ''["${private_instance_nsg_id}"]'' --wait'
   - "primary_vnic_id=$(curl -H 'Authorization: Bearer Oracle' http://169.254.169.254/opc/v1/vnics/ | jq -r '.[0].vnicId')"
@@ -67,3 +66,4 @@ runcmd:
   - oci network public-ip delete --public-ip-id $current_public_ip_id --force --wait-for-state UNASSIGNED
   - oci network public-ip update --public-ip-id ${reserved_public_ip_id} --private-ip-id $primary_private_ip_id
   - oci compute instance detach-vnic --compartment-id {{ ds.compartmentId }} --vnic-id $secondary_vnic_id --force
+  - systemctl reboot

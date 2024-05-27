@@ -8,6 +8,5 @@ packages:
 runcmd:
   - systemctl enable nginx
   - systemctl start nginx
-  - systemctl stop firewalld
   - firewall-offline-cmd --add-port=80/tcp
-  - systemctl start firewalld
+  - systemctl reboot
